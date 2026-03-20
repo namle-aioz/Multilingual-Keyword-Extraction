@@ -13,14 +13,11 @@ from keybert import KeyBERT
 from langdetect import LangDetectException, detect_langs
 from sentence_transformers import SentenceTransformer
 
-warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
-
 INDEX_PATH = "faiss.index"
 META_PATH = "faiss_meta.npy"
 DATA_CSV = "data.csv"
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
-print("--- Initializing AI Models... ---")
 embed_model = SentenceTransformer(MODEL_NAME)
 kw_model = KeyBERT(model=embed_model)
 
@@ -48,7 +45,6 @@ def load_topics_from_csv(filepath):
 
 def get_or_create_index(topics_list):
     if os.path.exists(INDEX_PATH) and os.path.exists(META_PATH):
-        print("--- Loading FAISS index from disk... ---")
         index = faiss.read_index(INDEX_PATH)
         meta = np.load(META_PATH, allow_pickle=True).tolist()
         return index, meta
@@ -56,7 +52,6 @@ def get_or_create_index(topics_list):
     if not topics_list:
         return None, None
 
-    print("--- Building NEW FAISS index... ---")
     l2_labels = [t["l2"] for t in topics_list]
     embeddings = embed_model.encode(
         l2_labels, 
@@ -180,9 +175,6 @@ if __name__ == "__main__":
             res = process_multilingual(user_input, active_index, active_meta)
             t_end = time.perf_counter()
             
-            print(f"[TIME]: {(t_end - t_start)*1000:.2f}ms")
-            print(json.dumps(res, indent=2, ensure_ascii=False))
-            
         except KeyboardInterrupt:
-            print("\nProgram forcefully stopped.")
+            print("\nProgram stopped.")
             break
