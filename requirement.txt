@@ -1,8 +1,6 @@
-faiss-cpu
 numpy
-spacy
-keybert
 langdetect
-sentence-transformers
 scikit-learn
+sentence-transformers
+faiss-cpu
 torch

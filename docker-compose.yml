@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  keyword-extractor:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: multilingual-keyword-extractor
+    
+    # RẤT QUAN TRỌNG: Script test.py sử dụng vòng lặp input() nên bắt buộc phải 
+    # có 2 cờ này để bật chế độ CLI tương tác (Interactive tty)
+    stdin_open: true 
+    tty: true
+    
+    volumes:
+      # Ánh xạ thư mục hiện tại ở máy thật vào thẳng /app trong container.
+      # Điều này cho phép tính năng "Hot-reload" của bạn hoạt động ngay lập tức 
+      # khi bạn chỉnh sửa file data.csv mà không cần build lại Image.
+      - .:/app
+      
+    environment:
+      - PYTHONUNBUFFERED=1
+      
+    # MẸO NVIDIA GPU: 
+    # Mặc định Docker chạy trên CPU. Nếu máy anh có card NVIDIA và anh đã cài nvidia-container-toolkit, 
+    # hãy XÓA DẤU THĂNG (#) ở khối lệnh mờ dưới đây để đẩy mô hình AI V4 gánh bằng GPU (tốc độ sẽ x10).
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

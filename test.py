@@ -8,10 +8,15 @@ from collections import defaultdict
 
 import faiss
 import numpy as np
-import stopwordsiso
-from keybert import KeyBERT
 from langdetect import LangDetectException, detect_langs
+
 from sentence_transformers import SentenceTransformer
+
+try:
+    import stopwordsiso
+    HAS_STOPWORDS = True
+except ImportError:
+    HAS_STOPWORDS = False
 
 INDEX_PATH = "faiss.index"
 META_PATH = "faiss_meta.npy"
@@ -19,9 +24,10 @@ DATA_CSV = "data.csv"
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
 embed_model = SentenceTransformer(MODEL_NAME)
-kw_model = KeyBERT(model=embed_model)
 
 def get_dynamic_stopwords(lang_code):
+    if not HAS_STOPWORDS:
+        return []
     try:
         if stopwordsiso.has_lang(lang_code):
             return list(stopwordsiso.stopwords(lang_code))
@@ -85,6 +91,34 @@ def clean_overlapping_keywords(keywords_list):
             unique_kws.append(kw)
     return unique_kws
 
+def extract_keywords_st(text, stop_words=None, top_n=10, ngram_range=(1, 3)):
+    words = text.split()
+    if not words:
+        return []
+    
+    sw_set = set([s.lower() for s in stop_words]) if stop_words else set()
+    candidates = set()
+    
+    for n in range(ngram_range[0], ngram_range[1] + 1):
+        for i in range(len(words) - n + 1):
+            ngram_words = words[i:i+n]
+            if all(w.lower() in sw_set for w in ngram_words):
+                continue
+            cand = " ".join(ngram_words)
+            candidates.add(cand)
+            
+    candidates = list(candidates)
+    if not candidates:
+        return []
+        
+    doc_embedding = embed_model.encode([text], normalize_embeddings=True).astype("float32")
+    cand_embeddings = embed_model.encode(candidates, normalize_embeddings=True).astype("float32")
+    
+    distances = np.dot(cand_embeddings, doc_embedding.T).flatten()
+    top_indices = distances.argsort()[::-1][:top_n]
+    
+    return [(candidates[i], float(distances[i])) for i in top_indices]
+
 def process_multilingual(text, index, meta, top_n_kw=10, threshold=0.45):
     word_count = len(text.split())
     
@@ -105,11 +139,11 @@ def process_multilingual(text, index, meta, top_n_kw=10, threshold=0.45):
     
     dynamic_stop_words = get_dynamic_stopwords(lang)
     
-    extracted = kw_model.extract_keywords(
+    extracted = extract_keywords_st(
         text,
-        keyphrase_ngram_range=(1, 3),
         stop_words=dynamic_stop_words,
-        top_n=top_n_kw
+        top_n=top_n_kw,
+        ngram_range=(1, 3)
     )
 
     if not extracted:
@@ -174,6 +208,10 @@ if __name__ == "__main__":
             t_start = time.perf_counter()
             res = process_multilingual(user_input, active_index, active_meta)
             t_end = time.perf_counter()
+            
+            print()
+            print(json.dumps(res, indent=2, ensure_ascii=False))
+            print(f"Time taken: {t_end - t_start:.4f}s")
             
         except KeyboardInterrupt:
             print("\nProgram stopped.")
