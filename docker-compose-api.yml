@@ -1,9 +1,9 @@
 services:
-  keyword-extractor:
+  keyword-extractor-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: multilingual-keyword-extractor
+    container_name: multilingual-keyword-extractor-api
     stdin_open: true
     tty: true
 
@@ -12,3 +12,8 @@ services:
 
     environment:
       - PYTHONUNBUFFERED=1
+
+    ports:
+      - "8000:8000"
+
+    command: python api.py

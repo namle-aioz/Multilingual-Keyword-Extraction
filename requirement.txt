@@ -4,3 +4,7 @@ scikit-learn
 sentence-transformers
 faiss-cpu
 torch
+beautifulsoup4
+fastapi
+uvicorn
+pydantic
