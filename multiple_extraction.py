@@ -18,6 +18,12 @@ try:
 except ImportError:
     HAS_STOPWORDS = False
 
+try:
+    from deep_translator import GoogleTranslator
+    HAS_TRANSLATOR = True
+except ImportError:
+    HAS_TRANSLATOR = False
+
 INDEX_PATH = "faiss.index"
 META_PATH = "faiss_meta.npy"
 DATA_CSV = "data.csv"
@@ -87,6 +93,28 @@ def detect_lang_with_confidence(text):
         pass
     return "en", 0.0
 
+
+def normalize_to_english(text):
+    cleaned_text = text.strip()
+    if not cleaned_text:
+        return cleaned_text
+
+    lang, _ = detect_lang_with_confidence(cleaned_text)
+    if lang == "en":
+        return cleaned_text
+
+    if not HAS_TRANSLATOR:
+        return cleaned_text
+
+    try:
+        translated = GoogleTranslator(source="auto", target="en").translate(cleaned_text)
+        if translated and translated.strip():
+            return translated.strip()
+    except Exception:
+        pass
+
+    return cleaned_text
+
 def extract_ngram_candidates(text, stop_words, ngram_range=(1, 3)):
     clauses = re.split(r'[.,!?()\[\]{}":;\n]+', text.lower())
     
@@ -117,9 +145,7 @@ def extract_ngram_candidates(text, stop_words, ngram_range=(1, 3)):
                     
     return counts
 
-def process_multilingual(text, index, meta, embed_model, top_n_kw=10, doc_topic_k=5, keyword_threshold=0.45):
-    word_count = len(text.split())
-    
+def process_multilingual(text, index, meta, embed_model, top_n_kw=10, doc_topic_k=5, keyword_threshold=0.45, word_count=0):
     base_result = {
         "status": "success",
         "word_count": word_count,
@@ -210,7 +236,12 @@ if __name__ == "__main__":
     while True:
         try:
             user_input = input("\nEnter text to analyze (or 'exit' to quit): ")
+            word_count = len(user_input.split())
+            if word_count == 0 or word_count > 2000:
+                print("Please enter text between 1 and 2000 words.")
+                continue
             user_input = remove_html(user_input)
+            user_input = normalize_to_english(user_input)
 
             
             if user_input.lower() in ['exit', 'quit']:
@@ -220,7 +251,7 @@ if __name__ == "__main__":
                 continue
 
             t_start = time.perf_counter()
-            res = process_multilingual(user_input, active_index, active_meta, embed_model)
+            res = process_multilingual(user_input, active_index, active_meta, embed_model, word_count=word_count)
             t_end = time.perf_counter()
             
             print()

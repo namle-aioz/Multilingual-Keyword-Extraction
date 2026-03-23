@@ -5,6 +5,7 @@ from multiple_extraction import (
     get_or_create_index,
     process_multilingual,
     remove_html,
+    normalize_to_english,
     DATA_CSV
 )
 
@@ -43,6 +44,7 @@ def read_root():
 @app.post("/analyze", response_model=AnalysisResponse)
 def analyze_text(input_data: TextInput):
     text = remove_html(input_data.text)
+    text = normalize_to_english(text)
     
     if not text.strip():
         return {
@@ -62,6 +64,7 @@ def analyze_batch(inputs: list[TextInput]):
     results = []
     for input_data in inputs:
         text = remove_html(input_data.text)
+        text = normalize_to_english(text)
         result = process_multilingual(text, active_index, active_meta, embed_model)
         results.append(result)
     return {"results": results}
